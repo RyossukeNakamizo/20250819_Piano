@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Music Theory Trainer</title>
+  <style>
+    :root{
+      --bg1:#0f1021; --bg2:#1b1d3a; --acc:#ffd166; --acc2:#06d6a0; --acc3:#118ab2; --err:#ef476f;
+      --key:white; --key-black:#222; --key-active:#ffe08a; --key-black-active:#555;
+    }
+    html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;color:#f2f4f8;background:linear-gradient(160deg,var(--bg1),var(--bg2));}
+    .app{max-width:1100px;margin:0 auto;padding:18px 14px 28px;}
+    header{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+    .logo{width:44px;height:44px;position:relative;}
+    /* simple music-note logo */
+    .logo:before,.logo:after{content:"";position:absolute;background:var(--acc);border-radius:6px}
+    .logo:before{width:12px;height:38px;left:24px;top:2px;box-shadow:0 0 18px rgba(255,209,102,.55)}
+    .logo:after{width:18px;height:18px;left:6px;bottom:2px;border-radius:50%;filter:drop-shadow(0 0 10px rgba(255,209,102,.6))}
+    h1{font-size:clamp(22px,3vw,30px);margin:0;letter-spacing:.5px}
+    .subtitle{opacity:.8;margin-top:2px}
+
+    .bar{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+    .chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);padding:8px 12px;border-radius:999px}
+
+    .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
+    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+
+    .card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:14px 14px 12px;backdrop-filter: blur(8px)}
+    .card h2{margin:0 0 10px;font-size:18px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    label{opacity:.9}
+    select,button,input[type=range]{appearance:none;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:#fff;padding:8px 10px}
+    select:focus,button:focus,input[type=text]:focus{outline:2px solid var(--acc3)}
+    button{cursor:pointer;transition:.15s;}
+    .btn{background:linear-gradient(180deg,rgba(17,138,178,.6),rgba(17,138,178,.3));border:1px solid rgba(17,138,178,.7)}
+    .btn.alt{background:linear-gradient(180deg,rgba(6,214,160,.6),rgba(6,214,160,.3));border:1px solid rgba(6,214,160,.7)}
+    .btn.warn{background:linear-gradient(180deg,rgba(239,71,111,.7),rgba(239,71,111,.35));border:1px solid rgba(239,71,111,.8)}
+
+    .piano-wrap{margin-top:16px}
+    .piano{position:relative;height:220px;user-select:none;}
+    .white-keys{display:flex;height:100%}
+    .white{flex:1;background:linear-gradient(#fff,#f0f0f0);border-left:1px solid #ccc;border-bottom:4px solid #bbb;border-radius:0 0 6px 6px;position:relative}
+    .white.active{background:linear-gradient(#ffeeb5,#ffd86b);}
+    .white .label{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);font-size:12px;color:#333;opacity:.8}
+
+    .black{position:absolute;top:0;width:60%;height:60%;left:70%;transform:translateX(-50%);background:linear-gradient(#333,#111);border:1px solid #000;border-bottom:3px solid #000;border-radius:0 0 6px 6px;z-index:3}
+    .black.active{background:linear-gradient(#666,#333)}
+    .black .label{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:11px;color:#eee;opacity:.9}
+
+    .highlight-scale{box-shadow:inset 0 0 0 3px var(--acc2), 0 0 12px rgba(6,214,160,.4)}
+    .highlight-chord{box-shadow:inset 0 0 0 3px var(--acc), 0 0 14px rgba(255,209,102,.45)}
+
+    .tiny{font-size:12px;opacity:.85}
+    .badge{padding:3px 8px;border-radius:999px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);font-size:12px;margin-left:8px}
+
+    .choices{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
+    .choices button{padding:10px;border-radius:12px}
+
+    .score{display:flex;gap:8px;align-items:center;margin-top:8px}
+    .keyhelp{opacity:.75}
+
+    .footer{margin-top:18px;display:flex;justify-content:space-between;align-items:center;opacity:.8}
+    .link{color:var(--acc);text-decoration:none}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="logo" aria-hidden="true"></div>
+      <div>
+        <h1>Music Theory Trainer</h1>
+        <div class="subtitle">Interactive piano • Scales & Chords • Ear Training</div>
+      </div>
+    </header>
+
+    <div class="bar">
+      <span class="chip">WebAudio enabled after first click</span>
+      <span class="chip">Keyboard input supported</span>
+      <span class="chip">Theme: fun & musical ✨</span>
+    </div>
+
+    <div class="grid">
+      <!-- LEFT: Learning Controls -->
+      <section class="card" aria-label="Learning Controls">
+        <h2>Learn: Notes, Scales & Chords <span class="badge" id="nowPlaying">Ready</span></h2>
+
+        <div class="row" style="margin-bottom:10px">
+          <label>Wave:</label>
+          <select id="wave">
+            <option value="sine">Sine</option>
+            <option value="triangle">Triangle</option>
+            <option value="square">Square</option>
+            <option value="sawtooth">Saw</option>
+          </select>
+          <label>Volume:</label>
+          <input id="volume" type="range" min="0" max="1" step="0.01" value="0.5"/>
+          <label>Show Note Names</label>
+          <input id="showNames" type="checkbox" checked />
+        </div>
+
+        <div class="row" style="margin:8px 0 2px"><strong>Scale Trainer</strong></div>
+        <div class="row">
+          <label for="scaleRoot">Root</label>
+          <select id="scaleRoot"></select>
+          <label for="scaleType">Scale</label>
+          <select id="scaleType"></select>
+          <button class="btn" id="playScale">Play Scale</button>
+          <button class="btn alt" id="clearScale">Clear</button>
+        </div>
+
+        <div class="row" style="margin:14px 0 2px"><strong>Chord Trainer</strong></div>
+        <div class="row">
+          <label for="chordRoot">Root</label>
+          <select id="chordRoot"></select>
+          <label for="chordType">Chord</label>
+          <select id="chordType"></select>
+          <label>Mode</label>
+          <select id="chordMode">
+            <option value="block">Block</option>
+            <option value="arp">Arpeggio</option>
+          </select>
+          <button class="btn" id="playChord">Play Chord</button>
+          <button class="btn alt" id="clearChord">Clear</button>
+        </div>
+        <div class="tiny" id="formula">Formula: —</div>
+      </section>
+
+      <!-- RIGHT: Ear Training -->
+      <section class="card" aria-label="Ear Training">
+        <h2>Ear Training <span class="badge" id="etStatus">Idle</span></h2>
+        <div class="row">
+          <label>Mode</label>
+          <select id="etMode">
+            <option value="note">Note (Absolute Pitch)</option>
+            <option value="interval">Interval (Ascending)</option>
+            <option value="chord">Chord Quality</option>
+          </select>
+          <button class="btn" id="etPlay">▶︎ Play</button>
+          <button class="btn" id="etRepeat">⟲ Repeat</button>
+          <button class="btn alt" id="etNext">Next</button>
+          <button class="btn warn" id="etReset">Reset Score</button>
+        </div>
+        <div class="choices" id="etChoices"></div>
+        <div class="score"><strong>Score:</strong>
+          <span id="correct">0</span>/<span id="total">0</span>
+          <span id="lastResult" class="badge">—</span>
+        </div>
+        <div class="tiny keyhelp">Keyboard map (white): Z X C V B N M , . / — (black): S D G H J</div>
+      </section>
+    </div>
+
+    <!-- PIANO -->
+    <section class="card piano-wrap" aria-label="Interactive Piano">
+      <h2>Interactive Piano</h2>
+      <div id="piano" class="piano" role="application" aria-label="Piano keyboard"></div>
+    </section>
+
+    <div class="footer tiny">
+      <div>Tips: Click any key to initialize audio. Use trainers to highlight keys; try guessing by ear!</div>
+      <div>v1.0</div>
+    </div>
+  </div>
+
+  <script>
+    // ===== Utilities =====
+    const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+
+    // Note name set (sharps) and mapping
+    const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+    const MIDI_START = 60; // C4
+    const NUM_KEYS = 24;   // 2 octaves -> C4..B5
+
+    const midiToFreq = (m)=> 440 * Math.pow(2,(m-69)/12);
+    const midiToName = (m)=> NOTE_NAMES[m%12] + Math.floor(m/12 - 1);
+    const nameNoOct = (m)=> NOTE_NAMES[m%12];
+    const idxForName = (name)=> NOTE_NAMES.indexOf(name);
+
+    // Scale & chord dictionaries
+    const SCALES = {
+      "Major":        [0,2,4,5,7,9,11],
+      "Natural Minor":[0,2,3,5,7,8,10],
+      "Major Pentatonic":[0,2,4,7,9],
+      "Minor Pentatonic":[0,3,5,7,10],
+      "Blues":        [0,3,5,6,7,10],
+    };
+    const CHORDS = {
+      "Major":   [0,4,7],
+      "Minor":   [0,3,7],
+      "Diminished": [0,3,6],
+      "Augmented":  [0,4,8],
+      "Maj7":   [0,4,7,11],
+      "Min7":   [0,3,7,10],
+      "Dom7":   [0,4,7,10],
+    };
+
+    // ===== Audio Engine =====
+    let ctx=null, master=null;
+    const state={wave:"sine",vol:0.5, showNames:true};
+
+    function ensureAudio(){
+      if(!ctx){
+        ctx = new (window.AudioContext||window.webkitAudioContext)();
+        master = ctx.createGain(); master.gain.value = state.vol; master.connect(ctx.destination);
+      }
+    }
+
+    function setVolume(v){ if(master){ master.gain.value=v; } state.vol=v; }
+
+    function playTone(freq, dur=0.6){
+      ensureAudio();
+      const now = ctx.currentTime;
+      // slight chorus: two detuned oscillators
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, now);
+      g.gain.linearRampToValueAtTime(0.9, now+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, now+dur);
+      g.connect(master);
+
+      const osc1 = ctx.createOscillator(); osc1.type=state.wave; osc1.frequency.value=freq;
+      const osc2 = ctx.createOscillator(); osc2.type=state.wave; osc2.frequency.value=freq*1.003;
+      osc1.connect(g); osc2.connect(g);
+      osc1.start(now); osc2.start(now);
+      osc1.stop(now+dur+0.05); osc2.stop(now+dur+0.05);
+    }
+
+    async function playNotes(freqs, mode="block", gap=0.25){
+      ensureAudio();
+      if(mode==="block"){ freqs.forEach(f=>playTone(f, 0.8)); return; }
+      // arpeggio
+      for(let i=0;i<freqs.length;i++){
+        playTone(freqs[i], 0.45);
+        await new Promise(r=>setTimeout(r, gap*1000));
+      }
+    }
+
+    // ===== Piano UI =====
+    const pianoDiv = document.getElementById('piano');
+    const keys=[]; // {el,midi,isBlack}
+
+    function isBlack(m){ return [1,3,6,8,10].includes(m%12); }
+
+    function renderPiano(){
+      pianoDiv.innerHTML='';
+      const whiteWrap=document.createElement('div'); whiteWrap.className='white-keys';
+      pianoDiv.appendChild(whiteWrap);
+
+      const whitePositions=[]; // track white key DOM to overlay blacks
+
+      for(let i=0;i<NUM_KEYS;i++){
+        const midi = MIDI_START+i;
+        const n = midi%12; const name = nameNoOct(midi);
+        const el = document.createElement('div');
+        if(!isBlack(midi)){
+          el.className='white';
+          const lab=document.createElement('div'); lab.className='label'; lab.textContent=state.showNames? name:""; el.appendChild(lab);
+          whiteWrap.appendChild(el);
+          whitePositions.push({el,midi});
+          keys.push({el,midi,isBlack:false});
+        }
+      }
+      // overlay black keys
+      const blackMap = {0:0,1:0, 2:1,3:1, 4:2, 5:3,6:3, 7:4,8:4, 9:5,10:5, 11:6};
+      let whiteIdx=0;
+      for(let i=0;i<NUM_KEYS;i++){
+        const midi=MIDI_START+i;
+        if(!isBlack(midi)){ whiteIdx++; continue; }
+        const posIdx = blackMap[midi%12];
+        const anchor = whitePositions[(whiteIdx-1)];
+        if(!anchor) continue;
+        const b=document.createElement('div'); b.className='black';
+        const lab=document.createElement('div'); lab.className='label'; lab.textContent=state.showNames? nameNoOct(midi):""; b.appendChild(lab);
+        anchor.el.appendChild(b);
+        keys.push({el:b,midi,isBlack:true});
+      }
+
+      // events
+      keys.forEach(k=>{
+        k.el.addEventListener('mousedown',()=> keyDown(k.midi));
+        k.el.addEventListener('mouseup',()=> keyUp(k.midi));
+        k.el.addEventListener('mouseleave',()=> keyUp(k.midi));
+      })
+    }
+
+    // active map
+    const active=new Map();
+    function keyDown(midi){ ensureAudio(); const f=midiToFreq(midi); if(active.get(midi)) return; active.set(midi,true);
+      const k=keys.find(x=>x.midi===midi); if(k){k.el.classList.add('active');}
+      playTone(f, 0.7);
+      setNowPlaying(midiToName(midi));
+    }
+    function keyUp(midi){ active.delete(midi); const k=keys.find(x=>x.midi===midi); if(k){k.el.classList.remove('active');}}
+
+    // Keyboard mapping (common layout similar to many piano web apps)
+    const KEYMAP = {
+      'z':0,'s':1,'x':2,'d':3,'c':4,'v':5,'g':6,'b':7,'h':8,'n':9,'j':10,'m':11,
+      ',':12,'l':13,'.':14,';':15,'/':16
+    };
+    window.addEventListener('keydown', (e)=>{
+      const k=e.key.toLowerCase(); if(!(k in KEYMAP)) return; e.preventDefault(); const off=KEYMAP[k]; const midi=MIDI_START+off; keyDown(midi);
+    });
+    window.addEventListener('keyup', (e)=>{
+      const k=e.key.toLowerCase(); if(!(k in KEYMAP)) return; e.preventDefault(); const off=KEYMAP[k]; keyUp(MIDI_START+off);
+    });
+
+    function setNowPlaying(txt){ document.getElementById('nowPlaying').textContent = `Playing: ${txt}`; }
+
+    // ===== Controls =====
+    const waveSel = document.getElementById('wave');
+    const volRange = document.getElementById('volume');
+    const showNames = document.getElementById('showNames');
+
+    waveSel.addEventListener('change',()=>{state.wave=waveSel.value;saveState();});
+    volRange.addEventListener('input',()=>{setVolume(parseFloat(volRange.value));saveState();});
+    showNames.addEventListener('change',()=>{state.showNames=showNames.checked; saveState(); renderPiano(); reapplyHighlights();});
+
+    function saveState(){ localStorage.setItem('mtt_state', JSON.stringify(state)); }
+    function loadState(){
+      const s=localStorage.getItem('mtt_state'); if(s){ try{Object.assign(state, JSON.parse(s));}catch{}}
+      waveSel.value=state.wave; volRange.value=state.vol; showNames.checked=state.showNames;
+    }
+
+    // ===== Populate selects =====
+    const scaleRootSel = document.getElementById('scaleRoot');
+    const scaleTypeSel = document.getElementById('scaleType');
+    const chordRootSel = document.getElementById('chordRoot');
+    const chordTypeSel = document.getElementById('chordType');
+    const chordModeSel = document.getElementById('chordMode');
+    const formulaDiv = document.getElementById('formula');
+
+    function fillNoteOptions(sel){ sel.innerHTML=''; NOTE_NAMES.forEach(n=>{ const o=document.createElement('option'); o.value=n; o.textContent=n; sel.appendChild(o);}); }
+    function fillDictOptions(sel, dict){ sel.innerHTML=''; Object.keys(dict).forEach(k=>{ const o=document.createElement('option'); o.value=k; o.textContent=k; sel.appendChild(o);}); }
+
+    // ===== Highlight helpers =====
+    function clearHighlights(cls){ keys.forEach(k=> k.el.classList.remove(cls)); }
+    function highlightMIDIs(midis, cls){ const set=new Set(midis); keys.forEach(k=>{ if(set.has(k.midi%12)) k.el.classList.add(cls); }); }
+
+    function reapplyHighlights(){ handleScale(false); handleChord(false); }
+
+    function handleScale(play=true){
+      clearHighlights('highlight-scale');
+      const root = idxForName(scaleRootSel.value);
+      const pat = SCALES[scaleTypeSel.value]||[];
+      const pcs = pat.map(i=> (root+i)%12);
+      highlightMIDIs(pcs,'highlight-scale');
+      if(play){ const base = MIDI_START + (root - (MIDI_START%12) + 12)%12; const freqs = pat.concat([12]).map(i=> midiToFreq(base+i)); playNotes(freqs,'arp',0.22); }
+    }
+
+    function handleChord(play=true){
+      clearHighlights('highlight-chord');
+      const root = idxForName(chordRootSel.value);
+      const pat = CHORDS[chordTypeSel.value]||[];
+      const pcs = pat.map(i=> (root+i)%12);
+      highlightMIDIs(pcs,'highlight-chord');
+      formulaDiv.textContent = 'Formula: ' + pat.join(', ');
+
+      if(play){
+        // choose an octave close to keyboard start
+        const base = MIDI_START + (root - (MIDI_START%12) + 12)%12; 
+        const freqs = pat.map(i=> midiToFreq(base+i));
+        playNotes(freqs, chordModeSel.value, 0.22);
+      }
+    }
+
+    document.getElementById('playScale').addEventListener('click',()=>handleScale(true));
+    document.getElementById('clearScale').addEventListener('click',()=>{clearHighlights('highlight-scale')});
+    document.getElementById('playChord').addEventListener('click',()=>handleChord(true));
+    document.getElementById('clearChord').addEventListener('click',()=>{clearHighlights('highlight-chord')});
+
+    // ===== Ear Training =====
+    const etModeSel = document.getElementById('etMode');
+    const etChoices = document.getElementById('etChoices');
+    const etStatus = document.getElementById('etStatus');
+    const etCorrect = document.getElementById('correct');
+    const etTotal = document.getElementById('total');
+    const etLast = document.getElementById('lastResult');
+
+    let quizTarget=null, quizMeta=null; // varies by mode
+
+    function randInt(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+    function pick(array, n){ const a=[...array]; const out=[]; while(out.length<n && a.length){ out.push(a.splice(randInt(0,a.length-1),1)[0]); } return out; }
+
+    function newQuestion(){
+      etStatus.textContent='Question'; etLast.textContent='—';
+      const mode = etModeSel.value;
+      etChoices.innerHTML='';
+      if(mode==='note'){
+        const midi = MIDI_START + randInt(0, NUM_KEYS-1);
+        quizTarget = midi; quizMeta = nameNoOct(midi);
+        const all = [...NOTE_NAMES];
+        const opts = pick(all.filter(n=>n!==quizMeta),3).concat([quizMeta]);
+        opts.sort(()=>Math.random()-0.5);
+        opts.forEach(txt=> addChoice(txt, ()=> checkAnswer(txt, quizMeta, ()=> playTone(midiToFreq(midi),0.8))));
+      } else if(mode==='interval'){
+        const intervals = [0,1,2,3,4,5,6,7,8,9,10,11,12];
+        const names = ['Unison','m2','M2','m3','M3','P4','TT','P5','m6','M6','m7','M7','Oct'];
+        const base = MIDI_START + 2 + randInt(0, NUM_KEYS-8);
+        const iv = pick(intervals.filter(i=>i>0 && i<=12),1)[0];
+        quizTarget = {base, iv}; quizMeta = names[iv];
+        const optsIdx = pick(intervals.filter(i=>i>0 && i<=12 && i!==iv),3).concat([iv]).sort(()=>Math.random()-0.5);
+        optsIdx.forEach(i=> addChoice(names[i], ()=> checkAnswer(names[i], names[iv], async ()=>{ await playNotes([midiToFreq(base), midiToFreq(base+i)], 'arp', 0.35);} )));
+      } else if(mode==='chord'){
+        const qualities = Object.keys(CHORDS);
+        const q = qualities[randInt(0, qualities.length-1)];
+        const root = idxForName(NOTE_NAMES[randInt(0, NOTE_NAMES.length-1)]);
+        quizTarget = {root,q}; quizMeta=q;
+        const opts = pick(qualities.filter(x=>x!==q),3).concat([q]).sort(()=>Math.random()-0.5);
+        const base = MIDI_START + (root - (MIDI_START%12) + 12)%12;
+        const freqs = CHORDS[q].map(i=> midiToFreq(base+i));
+        opts.forEach(txt=> addChoice(txt, ()=> checkAnswer(txt, q, ()=> playNotes(freqs, 'block')) ));
+      }
+    }
+
+    function addChoice(label, handler){
+      const b=document.createElement('button'); b.textContent=label; b.className='btn'; b.addEventListener('click', handler); etChoices.appendChild(b);
+    }
+
+    function checkAnswer(sel, ans, playCb){ etTotal.textContent = (+etTotal.textContent)+1; if(sel===ans){ etCorrect.textContent=(+etCorrect.textContent)+1; etLast.textContent='✔ Correct'; etLast.style.background='rgba(6,214,160,.25)'; playCb&&playCb(); } else { etLast.textContent=`✖ ${sel} (Ans: ${ans})`; etLast.style.background='rgba(239,71,111,.3)'; playCb&&playCb(); } }
+
+    document.getElementById('etPlay').addEventListener('click',()=>{
+      ensureAudio();
+      const mode=etModeSel.value;
+      if(mode==='note' && quizTarget){ playTone(midiToFreq(quizTarget),0.8); }
+      else if(mode==='interval' && quizTarget){ const {base,iv}=quizTarget; playNotes([midiToFreq(base), midiToFreq(base+iv)], 'arp', 0.35); }
+      else if(mode==='chord' && quizTarget){ const {root,q}=quizTarget; const base = MIDI_START + (root - (MIDI_START%12) + 12)%12; const freqs = CHORDS[q].map(i=> midiToFreq(base+i)); playNotes(freqs,'block'); }
+      else { newQuestion(); setTimeout(()=> document.getElementById('etPlay').click(), 50); }
+      etStatus.textContent='Playing';
+    });
+    document.getElementById('etRepeat').addEventListener('click',()=> document.getElementById('etPlay').click());
+    document.getElementById('etNext').addEventListener('click',()=> newQuestion());
+    document.getElementById('etReset').addEventListener('click',()=>{ etCorrect.textContent='0'; etTotal.textContent='0'; etLast.textContent='—'; etStatus.textContent='Idle'; newQuestion(); });
+
+    // ===== Init =====
+    function initSelects(){
+      fillNoteOptions(scaleRootSel); fillNoteOptions(chordRootSel);
+      scaleRootSel.value='C'; chordRootSel.value='C';
+      fillDictOptions(scaleTypeSel, SCALES); fillDictOptions(chordTypeSel, CHORDS);
+    }
+
+    scaleRootSel.addEventListener('change',()=>handleScale(false));
+    scaleTypeSel.addEventListener('change',()=>handleScale(false));
+    chordRootSel.addEventListener('change',()=>handleChord(false));
+    chordTypeSel.addEventListener('change',()=>handleChord(false));
+
+    // boot
+    loadState();
+    initSelects();
+    renderPiano();
+    reapplyHighlights();
+    newQuestion();
+  </script>
+</body>
+</html>
